@@ -1,5 +1,3 @@
-import { Tree } from "./tree.js";
-
 const width = 400;
 const height = 400;
 const canvas = document.getElementById("canvas");
