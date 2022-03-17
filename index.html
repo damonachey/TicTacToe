@@ -6,6 +6,8 @@
   </head>
 
   <body>
+    <input type="radio" id="minimax" name="engine" value="minimax" checked="true"><label for="minimax">Minimax</label></br>
+    <input type="radio" id="mcts" name="engine" value="mcts"><label for="mcts">Monte Carlo tree search</label></br>
     <p>
       <canvas id="canvas"></canvas>
     </p>
@@ -14,6 +16,6 @@
     <button id="computerFirst">Computer First</button>
 
     <link rel="stylesheet" type="text/css" href="src/styles.css">
-    <script src="src/index.js"></script>
+    <script type="module" src="src/index.js"></script>
   </body>
 </html>
