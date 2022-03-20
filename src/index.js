@@ -18,13 +18,13 @@ initialize();
 document.getElementById("newGame").onclick = e => initialize();
 
 document.getElementById("computerFirst").onclick = e => {
-  [state.player, state.computer] = [state.computer, state.player];
+  [state.human, state.computer] = [state.computer, state.human];
 
   computerMove();
 };
 
 function initialize() {
-  state.player = 'X';
+  state.human = 'X';
   state.computer = 'O';
   state.board = [
     [empty, empty, empty],
@@ -70,7 +70,7 @@ canvas.onclick = e => {
   let move = screenToMove(e);
 
   if (state.board[move.r][move.c] == empty) {
-    setBoardSquare(state.player, move.r, move.c);
+    setBoardSquare(state.human, move.r, move.c);
     computerMove();
   }
 };
@@ -145,24 +145,61 @@ function buildTree(node, p1, p2, depth = 1) {
   }
 }
 
-function minimax(node, depth = 0, maximizingPlayer = true) {
-  if (node.winner != empty) {
-    return node.winner == state.computer ? 10 - depth : depth - 10;
+// test minimax
+{
+  let head = {
+    board: [
+      ['-', '-', '-'],
+      ['X', ' ', 'X'],
+      [' ', '-', '-'],
+    ]
+  }
+
+  buildTree(head, state.computer, state.human);
+
+  let best = minimax(head, state.human)
+
+  debugger;
+}
+
+function minimax(node, lastPlayer, depth = 0) {
+  depth++;
+
+  if (node.winner == state.computer) {
+    node.score = 1000 - depth;
+    return node;
+  }
+
+  if (node.winner == state.human) {
+    node.score = depth - 1000;
+    return node;
   }
 
   if (node.nextMoves.length == 0) {
-    return 0;
+    node.score = 0;
+    return node;
   }
 
-  if (maximizingPlayer) {
-    return Math.max(...node
-      .nextMoves
-      .map(child => minimax(child, depth + 1, false)));
+  if (lastPlayer == state.computer) {
+    let best = { score: -Infinity };
+
+    for (let move of node.nextMoves) {
+      if (minimax(move, state.human, depth).score > best.score){
+        best = move;
+      }
+    }
+
+    return best;
   }
   else { /* minimizing player */
-    return Math.min(...node
-      .nextMoves
-      .map(child => minimax(child, depth + 1, false)));
+    let best = { score: Infinity };
+
+    for (let move of node.nextMoves) {
+      if (minimax(move, state.computer, depth).score < best.score) {
+        best = move;
+      }
+    }
+    return best;
   }
 }
 
@@ -178,22 +215,13 @@ function computerMove() {
     // https://en.wikipedia.org/wiki/Minimax#Minimax_algorithm_with_alternate_moves
 
     let head = { board: duplicateBoard(state.board) };
-    buildTree(head, state.computer, state.player);
+    buildTree(head, state.computer, state.human);
 
     drawTree(head);
 
     // TODO: https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 
-    best.value = -Infinity;
-
-    for (let move of head.nextMoves) {
-      let value = minimax(move);
-
-      if (value > best.value) {
-        best.value = value;
-        best.move = move;
-      }
-    }
+    best.move = minimax(head, state.computer);
   }
   else if (engine == "mcts") {
     // https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
@@ -219,7 +247,7 @@ function computerMove() {
           if (winner == state.computer) {
             test.wins++;
           }
-          if (winner == state.player) {
+          if (winner == state.human) {
             test.losses++;
           }
 
@@ -231,7 +259,7 @@ function computerMove() {
           test.ties++;
         }
 
-        turn = turn == state.computer ? state.player : state.computer;
+        turn = turn == state.computer ? state.human : state.computer;
       }
     }
 
