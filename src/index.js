@@ -2,7 +2,7 @@ const width = 400;
 const height = 400;
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const maxRuns = 1000;
+const maxRuns = 2000;
 
 const empty = ' ';
 const state = {};
@@ -81,42 +81,26 @@ function setBoardSquare(player, r, c) {
   ctx.fillText(player, c * width / 3 + width / 10, r * height / 3 + height / 4);
 }
 
-function gameWinner(board) {
-  // rows
-  for (var r = 0; r < 3; r++) {
-    if (board[r][0] != empty && board[r][0] == board[r][1] && board[r][1] == board[r][2]) {
-      return board[r][0];
-    }
-  }
-
-  // cols
-  for (var c = 0; c < 3; c++) {
-    if (board[0][c] != empty && board[0][c] == board[1][c] && board[1][c] == board[2][c]) {
-      return board[0][c];
-    }
-  }
-
-  // diags
-  if (board[1][1] != empty) {
-    if (board[0][0] == board[1][1] && board[1][1] == board[2][2]) {
-      return board[1][1];
-    }
-
-    if (board[2][0] == board[1][1] && board[1][1] == board[0][2]) {
-      return board[1][1];
-    }
-  }
-
-  return empty;
+function gameWinner(board, player) {
+  return (
+    (board[0][0] == player && board[0][1] == player && board[0][2] == player) || // row1
+    (board[1][0] == player && board[1][1] == player && board[1][2] == player) || // row2
+    (board[2][0] == player && board[2][1] == player && board[2][2] == player) || // row3
+    (board[0][0] == player && board[1][0] == player && board[2][0] == player) || // col1
+    (board[0][1] == player && board[1][1] == player && board[2][1] == player) || // col2
+    (board[0][2] == player && board[1][2] == player && board[2][2] == player) || // col3
+    (board[0][0] == player && board[1][1] == player && board[2][2] == player) || // diag1
+    (board[0][2] == player && board[1][1] == player && board[2][0] == player)    // diag2
+  ) ? player : empty;
 }
 
 function duplicateBoard(board) {
   let newBoard = [];
 
-  for (var r = 0; r < 3; r++) {
+  for (let r = 0; r < 3; r++) {
     newBoard[r] = [];
 
-    for (var c = 0; c < 3; c++) {
+    for (let c = 0; c < 3; c++) {
       newBoard[r][c] = board[r][c];
     }
   }
@@ -127,8 +111,8 @@ function duplicateBoard(board) {
 function getMoves(board) {
   let moves = [];
 
-  for (var r = 0; r < 3; r++) {
-    for (var c = 0; c < 3; c++) {
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
       if (board[r][c] == empty) {
         moves.push({ r, c });
       }
@@ -152,7 +136,7 @@ function buildTree(node, p1, p2, depth = 1) {
     child.move = { r: child.r, c: child.c, p: p1 };
     child.board = duplicateBoard(node.board);
     child.board[child.r][child.c] = p1;
-    child.winner = gameWinner(child.board);
+    child.winner = gameWinner(child.board, p1);
     child.nextMoves = [];
 
     if (child.winner == empty) {
@@ -161,32 +145,24 @@ function buildTree(node, p1, p2, depth = 1) {
   }
 }
 
-function minimax(node, depth = Infinity, maximizingPlayer = true) {
+function minimax(node, depth = 0, maximizingPlayer = true) {
   if (node.winner != empty) {
-    return node.winner == state.computer ? 1 : -1;
+    return node.winner == state.computer ? 10 - depth : depth - 10;
   }
 
-  if (node.nextMoves.length == 0 || depth == 0) {
+  if (node.nextMoves.length == 0) {
     return 0;
   }
 
   if (maximizingPlayer) {
-    let value = -Infinity;
-
-    for (let child of node.nextMoves) {
-      value = Math.max(value, minimax(child, depth - 1, false));
-    }
-
-    return value;
+    return Math.max(...node
+      .nextMoves
+      .map(child => minimax(child, depth + 1, false)));
   }
   else { /* minimizing player */
-    let value = Infinity;
-
-    for (let child of node.nextMoves) {
-      value = Math.min(value, minimax(child, depth - 1, true));
-    }
-
-    return value;
+    return Math.min(...node
+      .nextMoves
+      .map(child => minimax(child, depth + 1, false)));
   }
 }
 
@@ -204,14 +180,16 @@ function computerMove() {
     let head = { board: duplicateBoard(state.board) };
     buildTree(head, state.computer, state.player);
 
+    drawTree(head);
+
     // TODO: https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 
-    best.value = Infinity;
+    best.value = -Infinity;
 
     for (let move of head.nextMoves) {
       let value = minimax(move);
 
-      if (value < best.value) {
+      if (value > best.value) {
         best.value = value;
         best.move = move;
       }
@@ -235,7 +213,7 @@ function computerMove() {
 
       while (move) {
         board[move.r][move.c] = turn;
-        let winner = gameWinner(board);
+        let winner = gameWinner(board, turn);
 
         if (winner != empty) {
           if (winner == state.computer) {
@@ -277,4 +255,56 @@ function computerMove() {
   }
 
   setBoardSquare(state.computer, best.move.r, best.move.c);
+}
+
+function drawTree(node, depth = Infinity) {
+  let tc = document.getElementById('treeCanvas');
+  
+  if (!tc) {
+    tc = document.createElement('canvas');
+
+    tc.id = 'treeCanvas';
+    tc.width = 800;
+    tc.height = 600;
+
+    document.body.appendChild(tc);
+  }
+
+  let c = tc.getContext("2d");
+
+  c.fillStyle = 'grey';
+  c.fillRect(0, 0, tc.width, tc.height);
+
+  drawNode(node, tc.width / 2 - 20, 10);
+
+  let row = [];
+  for (let i = 0; i < node.nextMoves.length; i++) {
+    drawNode(node.nextMoves[i], i * tc.width / 9 + 20, 120);
+
+    //for (let j = 0; j < node.nextMoves[i].length; j++)
+  }
+}
+
+function drawNode(node, x, y) {
+  let tc = document.getElementById('treeCanvas');
+  let tcx = tc.getContext("2d");
+
+  tcx.font = '12px tahoma';
+  tcx.fillStyle = 'black';
+
+  var mm = minimax(node, node.player == state.computer);
+
+  tcx.fillText(`${mm}`, x + 5, y);
+
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      let chr = node.board[r][c];
+
+      if (chr == ' ') chr = '_';
+
+      var mmc= minimax(node, node.player == state.computer);
+      tcx.fillText(`${mmc}`, x + 5, y);
+      tcx.fillText(chr, x + 5 + (c * 14), y + 10 + (r * 14));
+    }
+  }
 }
